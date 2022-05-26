@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/lislambda
+lislambda.so
+lislambda.dylib
+lislambda.dll
+lislambda.a
+lislambda.lib
+lislambda-test-*
+*.exe
+*.o
+*.obj
+*.lst
