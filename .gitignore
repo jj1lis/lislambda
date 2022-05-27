@@ -13,3 +13,4 @@ lislambda-test-*
 *.o
 *.obj
 *.lst
+test.d

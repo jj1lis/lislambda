@@ -2,7 +2,8 @@ module primitives.set;
 
 import std.range.primitives : ElementType, isInputRange;
 import std.container.rbtree;
-import std.traits : ConstOf;
+//import std.traits : ConstOf;
+import std.traits : isImplicitlyConvertible;
 
 /**
 This is the implements of Set using a red-black tree (std.container.rbtree).
@@ -20,9 +21,13 @@ Source: $(HTTP github.com/jj1lis/lislambda/blob/master/source/primitive/set.d, s
   * Implementation of a set.
   * Set!Elem holds values of type Elem as elements.
   */
-class Set(Elem){
+class Set(Elem, alias less = "a < b", bool allowDuplicates = false){
     private:
-        RedBlackTree!Elem tree;
+        RedBlackTree!(Elem, less, allowDuplicates) tree;
+
+        template isImplicitlyConvertibleToElem(T){
+            alias isImplicitlyConvertibleToElem = isImplicitlyConvertible!(T, Elem) ;
+        }
 
     public:
 
@@ -57,26 +62,26 @@ class Set(Elem){
         }
 
         /// `A + B` returns a union of A and B.
-        Set!Elem opBinary(string op)(Set!Elem rset) if(op == "+"){
+        Set!(Elem, less, allowDuplicates) opBinary(string op)(Set!(Elem, less, allowDuplicates) rset) if(op == "+"){
             return new Set(this.elements ~ rset.elements);
         }
 
         /// `A ^ B` returns a intersection of A and B.
-        Set!Elem opBinary(string op)(Set!Elem rset) if(op == "^"){
+        Set!(Elem, less, allowDuplicates) opBinary(string op)(Set!(Elem, less, allowDuplicates) rset) if(op == "^"){
             import std.algorithm : filter;
 
             return new Set(this.elements.filter!(e => e in rset));
         }
 
         /// `A - B` returns a set difference that removed elements of B from A.
-        Set!Elem opBinary(string op)(Set!Elem rset) if(op == "-"){
+        Set!(Elem, less, allowDuplicates) opBinary(string op)(Set!(Elem, less, allowDuplicates) rset) if(op == "-"){
             auto diff = this.tree.dup;
             diff.removeKey(rset.elements);
             return new Set(diff[]);
         }
 
-        /// Inserts one element to the set.
-        void insert(Elem e){
+        /// Inserts elements to the set.
+        void insert(T)(T e) if(isImplicitlyConvertibleToElem!T){
             version(none){
                 import std.stdio;
                 writefln("->insert %s", e);
@@ -85,8 +90,8 @@ class Set(Elem){
             this.tree.insert(e);
         }
 
-        /// Inserts elements as Range to the set.
-        void insert(R)(R range) if(is(ConstOf!(ElementType!R) == ConstOf!Elem) && isInputRange!R){
+        /++ Ditto +/
+        void insert(R)(R range) if(isImplicitlyConvertibleToElem!(ElementType!R) && isInputRange!R){
             version(none){
                 import std.stdio;
                 writefln("insert %s", range);
@@ -97,11 +102,26 @@ class Set(Elem){
             range.each!(e => this.insert(e));
         }
 
+        /// removes element from the set.
+        void remove(Elems...)(Elems elems) if(allSatisfy!(isImplicitlyConvertibleToElem!Elems, Elems)){
+            this.tree.removeKey(elems);
+        }
+
+        /++ Ditto +/
+        void remove(ElemArray)(scope ElemArray[] elems) if(isImplicitlyConvertibleToElem!ElemArray){
+            this.tree.removeKey(elems);
+        }
+
+        /++ Ditto +/
+        void remove(R)(R range) if(isImplicitlyConvertibleToElem!(ElementType!R) && isInputRange!R && !isDynamicRange!R){
+            this.tree.removeKey(range);
+        }
+
         this(){
             tree = redBlackTree!Elem();
         }
 
-        this(R)(R range) if(is(ConstOf!(ElementType!R) == ConstOf!Elem) && isInputRange!R){
+        this(R)(R range) if(isImplicitlyConvertibleToElem!(ElementType!R) && isInputRange!R){
             tree = redBlackTree!Elem();
 
             version(none){
@@ -130,7 +150,7 @@ auto set(T)(){
 }
 
 /// Creates new Set!T with some elements.
-auto set(T, R)(R range) if(is(ConstOf!(ElementType!R) == ConstOf!T) && isInputRange!R){
+auto set(T, R)(R range) if(isImplicitlyConvertible!(ElementType!R, T) && isInputRange!R){
     return new Set!T(range);
 }
 
